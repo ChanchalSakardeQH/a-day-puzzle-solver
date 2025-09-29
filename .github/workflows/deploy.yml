@@ -1,35 +1,57 @@
 name: Deploy
+
 on:
   push:
     branches:
       - main
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
+
       - name: Set up Node
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v4
         with:
           node-version: '18'
+
       - name: Set up Rust
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+
+      - name: Cache Rust
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache Node
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+
       - name: cargo clippy
-        run: |
-          cargo clippy --all-features --all-targets --workspace -- -D warnings
+        run: cargo clippy --all-features --all-targets --workspace -- -D warnings
+
       - name: cargo test
-        run: |
-          cargo test --workspace
+        run: cargo test --workspace
+
       - name: Install wasm-pack
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+        uses: jetli/wasm-pack-action@v0.4.0
+
       - name: Install & Build
         run: |
           npm install
           npm run release-build
           rm ./public/pkg/.gitignore
+
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@3.6.2
         with:
